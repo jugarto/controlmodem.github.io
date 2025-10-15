@@ -1,37 +1,55 @@
-<!-- fragmento JS a integrar en tu index.html pública -->
-<script>
-  // NO pongas aquí el token en texto plano
-  // El usuario copia/pega el token solo en el móvil y lo guarda con esta UI
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Control remoto</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }
+    button { font-size: 20px; padding: 10px 25px; margin: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🌐 Control remoto de mi laptop</h1>
 
-  // Guardar token en localStorage del navegador (ejecutar solo en el móvil autorizado)
-  async function setTokenFromPrompt() {
-    const tk = prompt("Pega aquí el token seguro que generaste (solo en tu celular):");
-    if (tk && tk.length > 10) {
-      localStorage.setItem("RC_TOKEN", tk);
-      alert("Token guardado en este dispositivo.");
-    } else {
-      alert("Token inválido.");
+  <input type="text" id="texto" placeholder="Escribe un comando (ej: a o d)" style="padding:8px; font-size:16px; width:300px;">
+  <br>
+  <button onclick="enviar()">Enviar comando</button>
+  <button onclick="estado()">Ver estado</button>
+
+  <p id="resultado" style="margin-top:20px; font-weight:bold;"></p>
+
+  <script>
+    const SERVER = "https://abc123.ngrok.io"; // ⚠️ Reemplaza con tu URL real de ngrok
+
+    async function enviar() {
+      const msg = document.getElementById("texto").value.trim();
+      const resultado = document.getElementById("resultado");
+      if (!msg) { resultado.textContent = "Escribe un mensaje."; return; }
+      resultado.textContent = "Enviando...";
+      try {
+        const r = await fetch(SERVER + "/mensaje", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texto: msg })
+        });
+        const txt = await r.text();
+        resultado.textContent = "✅ " + txt;
+      } catch (e) {
+        resultado.textContent = "❌ Error al conectar con servidor local.";
+      }
     }
-  }
 
-  async function enviarComando() {
-    const token = localStorage.getItem("RC_TOKEN");
-    if (!token) { alert("No hay token en este dispositivo. Pulsa 'Registrar token' en tu móvil."); return; }
-    const texto = document.getElementById("texto").value.trim();
-    const SERVER = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev"; // tu URL pública de ngrok
-    try {
-      const r = await fetch(SERVER + "/mensaje", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: texto, token: token })
-      });
-      const j = await r.json();
-      alert("Respuesta: " + (j.msg || JSON.stringify(j)));
-    } catch (e) { alert("Error de conexión: " + e); }
-  }
-</script>
-
-<!-- botones en HTML -->
-<button onclick="setTokenFromPrompt()">Registrar token (solo en mi celular)</button>
-<input id="texto" type="text" placeholder="comando"/>
-<button onclick="enviarComando()">Enviar</button>
+    async function estado() {
+      const resultado = document.getElementById("resultado");
+      resultado.textContent = "Consultando estado...";
+      try {
+        const r = await fetch(SERVER + "/status");
+        const txt = await r.text();
+        resultado.textContent = txt;
+      } catch (e) {
+        resultado.textContent = "❌ No se pudo conectar.";
+      }
+    }
+  </script>
+</body>
+</html>
