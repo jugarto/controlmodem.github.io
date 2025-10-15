@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Control remoto — Router</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; text-align:center; padding:40px;}
+    button { font-size:18px; padding:12px 22px; margin:8px; cursor:pointer; }
+    #log { margin-top:18px; white-space:pre-wrap; text-align:left; max-width:720px; margin-left:auto; margin-right:auto; border:1px solid #eee; padding:12px; border-radius:6px; background:#fafafa;}
+    input[type=text] { padding:8px; width:320px; }
+  </style>
+</head>
+<body>
+  <h1>Panel remoto — Router</h1>
+  <p>Envía comandos al script Python en tu laptop.</p>
+
+  <div>
+    <label>Comando (a = activar, d = desactivar):</label><br/>
+    <input id="cmdInput" type="text" placeholder="por ejemplo: a 2" />
+  </div>
+
+  <div style="margin-top:12px;">
+    <button id="sendBtn">Enviar comando</button>
+    <button id="statusBtn">Estado servidor</button>
+  </div>
+
+  <div id="log">Logs aparecerán aquí...</div>
+
+  <script>
+    // URL del servidor Python en tu laptop.
+    // Usamos localhost para el caso en que abras esta página en la MISMA máquina.
+    const SERVER = "http://localhost:8080";
+
+    const log = (t) => {
+      const el = document.getElementById("log");
+      el.textContent = (new Date()).toLocaleTimeString() + " — " + t + "\n\n" + el.textContent;
+    };
+
+    document.getElementById("sendBtn").addEventListener("click", async () => {
+      const txt = document.getElementById("cmdInput").value.trim();
+      if (!txt) { log("Introduce un comando (ej: 'a 2' o 'd 1')"); return; }
+      log("Enviando: " + txt);
+      try {
+        const resp = await fetch(SERVER + "/command", {
+          method: "POST",
+          mode: "cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd: txt })
+        });
+        const body = await resp.text();
+        log("Respuesta: " + body);
+      } catch (e) {
+        log("ERROR: no se pudo conectar al servidor local. " + e);
+      }
+    });
+
+    document.getElementById("statusBtn").addEventListener("click", async () => {
+      log("Consultando estado...");
+      try {
+        const resp = await fetch(SERVER + "/status", { method: "GET", mode: "cors" });
+        const body = await resp.text();
+        log("Estado:\n" + body);
+      } catch (e) {
+        log("ERROR: no se pudo conectar al servidor local. " + e);
+      }
+    });
+  </script>
+</body>
+</html>
