@@ -4,67 +4,140 @@
   <meta charset="UTF-8" />
   <title>Control remoto</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; background:#fafafa; }
-    button { font-size: 20px; padding: 10px 25px; margin: 10px; cursor: pointer; border-radius:10px; }
-    input[type=text] { padding:8px; font-size:16px; width:300px; }
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 60px; background:#f9f9f9; }
+    button { font-size: 18px; padding: 10px 20px; margin: 10px; border-radius: 8px; border:none; cursor:pointer; }
+    .activar { background-color:#4CAF50; color:white; }
+    .desactivar { background-color:#d9534f; color:white; }
+    input, select { padding:6px; font-size:15px; border-radius:5px; border:1px solid #ccc; margin:5px; }
+    #resultado { margin-top:20px; font-weight:bold; color:#333; }
+    #contador { font-size:24px; color:#ff5555; margin-top:15px; }
   </style>
 </head>
 <body>
-  <h1>🌐 Control remoto seguro</h1>
 
-  <input type="text" id="cmd" placeholder="Comando (a o d)">
-  <br>
-  <button onclick="sendCmd()">Enviar</button>
-  <button onclick="getStatus()">Ver estado</button>
-  <button onclick="setToken()">Registrar token</button>
+  <h1>🌐 Control remoto del módem</h1>
 
-  <p id="res" style="margin-top:20px; font-weight:bold;"></p>
+  <p><b>Selecciona el dispositivo:</b></p>
+  <select id="device">
+    <option value="1">Dispositivo 1</option>
+    <option value="2">Dispositivo 2</option>
+    <option value="3">Dispositivo 3</option>
+  </select>
+
+  <div id="timeInputs" style="display:none;">
+    <p><b>Duración del bloqueo:</b></p>
+    <input type="number" id="hours" placeholder="Horas" min="0" style="width:80px;">
+    <input type="number" id="minutes" placeholder="Minutos" min="0" max="59" style="width:80px;">
+    <input type="number" id="seconds" placeholder="Segundos" min="0" max="59" style="width:80px;">
+  </div>
+
+  <div style="margin-top:15px;">
+    <button class="activar" onclick="enviar('a')">🟢 Activar</button>
+    <button class="desactivar" onclick="mostrarTiempo()">🔴 Desactivar</button>
+  </div>
+
+  <p id="resultado"></p>
+  <p id="contador"></p>
+
+  <button style="margin-top:20px;" onclick="registrarToken()">Registrar token</button>
 
   <script>
-  // URL del servidor Flask (por ngrok, HTTPS)
-  const S = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev"; 
+    const SERVER = "https://unrehabilitatingly-aileen.ngrok-free.dev"; // tu ngrok actual
+    let countdownInterval = null;
 
-  async function sendCmd() {
-    const msg = document.getElementById("cmd").value.trim();
-    const res = document.getElementById("res");
-    const tk = localStorage.getItem("RC_TOKEN");
-    if (!tk) { alert("Token no configurado."); return; }
-    if (!msg) { res.textContent = "Escribe un comando."; return; }
-    res.textContent = "Enviando...";
-
-    try {
-      const r = await fetch(S + "/mensaje", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: msg, token: tk })
-      });
-      const j = await r.json();
-      res.textContent = (j.status === "ok") ? "✅ " + j.msg : "❌ " + j.msg;
-    } catch (e) {
-      res.textContent = "❌ Error de conexión";
+    function registrarToken(){
+      const tk = prompt("Introduce tu token seguro:");
+      if (tk && tk.length > 10){
+        localStorage.setItem("RC_TOKEN", tk);
+        alert("✅ Token guardado.");
+      } else alert("❌ Token inválido.");
     }
-  }
 
-  async function getStatus() {
-    const res = document.getElementById("res");
-    res.textContent = "Consultando...";
-    try {
-      const r = await fetch(S + "/status");
-      res.textContent = await r.text();
-    } catch {
-      res.textContent = "❌ No se pudo conectar.";
+    function mostrarTiempo(){
+      document.getElementById("timeInputs").style.display = "block";
+      if (confirm("¿Deseas enviar el comando de desactivación ahora?")) enviar("d");
     }
-  }
 
-  function setToken() {
-    const t = prompt("Introduce tu token único:");
-    if (t && t.length > 10) {
-      localStorage.setItem("RC_TOKEN", t);
-      alert("Token guardado en este dispositivo.");
-    } else {
-      alert("Token inválido.");
+    async function enviar(tipo){
+      const tk = localStorage.getItem("RC_TOKEN");
+      if (!tk) { alert("⚠️ Token no configurado."); return; }
+      const device = document.getElementById("device").value;
+      let comando = tipo + " " + device;
+
+      if (tipo === "d"){
+        const h = document.getElementById("hours").value || 0;
+        const m = document.getElementById("minutes").value || 0;
+        const s = document.getElementById("seconds").value || 0;
+        comando += ` ${h}:${m}:${s}`;
+      }
+
+      const resultado = document.getElementById("resultado");
+      resultado.textContent = "⏳ Enviando...";
+
+      try {
+        const r = await fetch(SERVER + "/mensaje", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ texto: comando, token: tk })
+        });
+        const j = await r.json();
+        resultado.textContent = "✅ " + j.msg;
+        actualizarEstado();
+      } catch(e){
+        resultado.textContent = "❌ Error al conectar con el servidor.";
+      }
     }
-  }
+
+    async function actualizarEstado(){
+      try {
+        const r = await fetch(SERVER + "/status");
+        const st = await r.json();
+        const cont = document.getElementById("contador");
+        if (st.mode === "blocked" && st.remaining > 0){
+          iniciarTemporizador(st.remaining);
+          cont.textContent = `Bloqueado ⏳ ${formato(st.remaining)}`;
+        } else if (st.mode === "active"){
+          detenerTemporizador();
+          cont.textContent = "✅ Dispositivo activo";
+        } else {
+          detenerTemporizador();
+          cont.textContent = "";
+        }
+      } catch(e){
+        console.log("No se pudo obtener estado");
+      }
+    }
+
+    function formato(seg){
+      const h = Math.floor(seg/3600);
+      const m = Math.floor((seg%3600)/60);
+      const s = seg%60;
+      return `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+    }
+
+    function iniciarTemporizador(seg){
+      detenerTemporizador();
+      const cont = document.getElementById("contador");
+      countdownInterval = setInterval(()=>{
+        seg--;
+        if (seg<=0){
+          clearInterval(countdownInterval);
+          cont.textContent = "✅ Dispositivo reactivado";
+          actualizarEstado();
+        } else {
+          cont.textContent = `Bloqueado ⏳ ${formato(seg)}`;
+        }
+      },1000);
+    }
+
+    function detenerTemporizador(){
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
+
+    // Consulta cada 10s para sincronizar estado si cambió manualmente
+    setInterval(actualizarEstado, 10000);
+    actualizarEstado();
   </script>
 </body>
 </html>
