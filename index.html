@@ -15,8 +15,11 @@
   <br>
   <button onclick="enviar()">Enviar comando</button>
   <button onclick="estado()">Ver estado</button>
-
+  <button onclick="setTokenFromPrompt()">Registrar token (solo en mi celular)</button>
+  <input id="texto" type="text" placeholder="comando"/>
+  <button onclick="enviarComando()">Enviar</button>
   <p id="resultado" style="margin-top:20px; font-weight:bold;"></p>
+
 
   <script>
     const SERVER = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev"; // ⚠️ Reemplaza con tu URL real de ngrok
@@ -50,6 +53,17 @@
         resultado.textContent = "❌ No se pudo conectar.";
       }
     }
-  </script>
+    
+  async function setTokenFromPrompt() {
+    const tk = prompt("Pega aquí el token seguro que generaste (solo en tu celular):");
+    if (tk && tk.length > 10) {
+      localStorage.setItem("RC_TOKEN", tk);
+      alert("Token guardado en este dispositivo.");
+    } else {
+      alert("Token inválido.");
+    }
+  }
+
+</script>
 </body>
 </html>
