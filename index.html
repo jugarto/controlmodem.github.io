@@ -1,70 +1,37 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <title>Control remoto — Router</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; text-align:center; padding:40px;}
-    button { font-size:18px; padding:12px 22px; margin:8px; cursor:pointer; }
-    #log { margin-top:18px; white-space:pre-wrap; text-align:left; max-width:720px; margin-left:auto; margin-right:auto; border:1px solid #eee; padding:12px; border-radius:6px; background:#fafafa;}
-    input[type=text] { padding:8px; width:320px; }
-  </style>
-</head>
-<body>
-  <h1>Panel remoto — Router</h1>
-  <p>Envía comandos al script Python en tu laptop.</p>
+<!-- fragmento JS a integrar en tu index.html pública -->
+<script>
+  // NO pongas aquí el token en texto plano
+  // El usuario copia/pega el token solo en el móvil y lo guarda con esta UI
 
-  <div>
-    <label>Comando (a = activar, d = desactivar):</label><br/>
-    <input id="cmdInput" type="text" placeholder="por ejemplo: a 2" />
-  </div>
+  // Guardar token en localStorage del navegador (ejecutar solo en el móvil autorizado)
+  async function setTokenFromPrompt() {
+    const tk = prompt("Pega aquí el token seguro que generaste (solo en tu celular):");
+    if (tk && tk.length > 10) {
+      localStorage.setItem("RC_TOKEN", tk);
+      alert("Token guardado en este dispositivo.");
+    } else {
+      alert("Token inválido.");
+    }
+  }
 
-  <div style="margin-top:12px;">
-    <button id="sendBtn">Enviar comando</button>
-    <button id="statusBtn">Estado servidor</button>
-  </div>
+  async function enviarComando() {
+    const token = localStorage.getItem("RC_TOKEN");
+    if (!token) { alert("No hay token en este dispositivo. Pulsa 'Registrar token' en tu móvil."); return; }
+    const texto = document.getElementById("texto").value.trim();
+    const SERVER = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev"; // tu URL pública de ngrok
+    try {
+      const r = await fetch(SERVER + "/mensaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: texto, token: token })
+      });
+      const j = await r.json();
+      alert("Respuesta: " + (j.msg || JSON.stringify(j)));
+    } catch (e) { alert("Error de conexión: " + e); }
+  }
+</script>
 
-  <div id="log">Logs aparecerán aquí...</div>
-
-  <script>
-    // URL del servidor Python en tu laptop.
-    // Usamos localhost para el caso en que abras esta página en la MISMA máquina.
-    const SERVER = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev";
-
-    const log = (t) => {
-      const el = document.getElementById("log");
-      el.textContent = (new Date()).toLocaleTimeString() + " — " + t + "\n\n" + el.textContent;
-    };
-
-    document.getElementById("sendBtn").addEventListener("click", async () => {
-      const txt = document.getElementById("cmdInput").value.trim();
-      if (!txt) { log("Introduce un comando (ej: 'a 2' o 'd 1')"); return; }
-      log("Enviando: " + txt + " a " + SERVER);
-      try {
-        const resp = await fetch(SERVER + "/command", {
-          method: "POST",
-          mode: "cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cmd: txt })
-        });
-        const body = await resp.text();
-        log("Respuesta: " + body);
-      } catch (e) {
-        log("ERROR: no se pudo conectar al servidor local. " + e);
-      }
-    });
-
-    document.getElementById("statusBtn").addEventListener("click", async () => {
-      log("Consultando estado...");
-      try {
-        const resp = await fetch(SERVER + "/status", { method: "GET", mode: "cors" });
-        const body = await resp.text();
-        log("Estado:\n" + body);
-      } catch (e) {
-        log("ERROR: no se pudo conectar al servidor local. " + e);
-      }
-    });
-  </script>
-</body>
-</html>
+<!-- botones en HTML -->
+<button onclick="setTokenFromPrompt()">Registrar token (solo en mi celular)</button>
+<input id="texto" type="text" placeholder="comando"/>
+<button onclick="enviarComando()">Enviar</button>
