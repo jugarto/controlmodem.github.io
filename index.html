@@ -40,7 +40,7 @@
     document.getElementById("sendBtn").addEventListener("click", async () => {
       const txt = document.getElementById("cmdInput").value.trim();
       if (!txt) { log("Introduce un comando (ej: 'a 2' o 'd 1')"); return; }
-      log("Enviando: " + txt);
+      log("Enviando: " + txt + " a " + SERVER);
       try {
         const resp = await fetch(SERVER + "/command", {
           method: "POST",
