@@ -4,66 +4,67 @@
   <meta charset="UTF-8" />
   <title>Control remoto</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }
-    button { font-size: 20px; padding: 10px 25px; margin: 10px; cursor: pointer; }
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 100px; background:#fafafa; }
+    button { font-size: 20px; padding: 10px 25px; margin: 10px; cursor: pointer; border-radius:10px; }
+    input[type=text] { padding:8px; font-size:16px; width:300px; }
   </style>
 </head>
 <body>
-  <h1>🌐 Control remoto de mi laptop</h1>
+  <h1>🌐 Control remoto seguro</h1>
 
-  <input type="text" id="texto" placeholder="Escribe un comando (ej: a o d)" style="padding:8px; font-size:16px; width:300px;">
+  <input type="text" id="cmd" placeholder="Comando (a o d)">
   <br>
-  <button onclick="enviar()">Enviar comando</button>
-  <button onclick="estado()">Ver estado</button>
-  <button onclick="setTokenFromPrompt()">Registrar token (solo en mi celular)</button>
-  <input id="texto" type="text" placeholder="comando"/>
-  <button onclick="enviarComando()">Enviar</button>
-  <p id="resultado" style="margin-top:20px; font-weight:bold;"></p>
+  <button onclick="sendCmd()">Enviar</button>
+  <button onclick="getStatus()">Ver estado</button>
+  <button onclick="setToken()">Registrar token</button>
 
+  <p id="res" style="margin-top:20px; font-weight:bold;"></p>
 
   <script>
-    const SERVER = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev"; // ⚠️ Reemplaza con tu URL real de ngrok
+  // URL del servidor Flask (por ngrok, HTTPS)
+  const S = "https://unrehabilitated-divaricatingly-aileen.ngrok-free.dev"; 
 
-    async function enviar() {
-      const msg = document.getElementById("texto").value.trim();
-      const resultado = document.getElementById("resultado");
-      if (!msg) { resultado.textContent = "Escribe un mensaje."; return; }
-      resultado.textContent = "Enviando...";
-      try {
-        const r = await fetch(SERVER + "/mensaje", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ texto: msg })
-        });
-        const txt = await r.text();
-        resultado.textContent = "✅ " + txt;
-      } catch (e) {
-        resultado.textContent = "❌ Error al conectar con servidor local.";
-      }
-    }
+  async function sendCmd() {
+    const msg = document.getElementById("cmd").value.trim();
+    const res = document.getElementById("res");
+    const tk = localStorage.getItem("RC_TOKEN");
+    if (!tk) { alert("Token no configurado."); return; }
+    if (!msg) { res.textContent = "Escribe un comando."; return; }
+    res.textContent = "Enviando...";
 
-    async function estado() {
-      const resultado = document.getElementById("resultado");
-      resultado.textContent = "Consultando estado...";
-      try {
-        const r = await fetch(SERVER + "/status");
-        const txt = await r.text();
-        resultado.textContent = txt;
-      } catch (e) {
-        resultado.textContent = "❌ No se pudo conectar.";
-      }
+    try {
+      const r = await fetch(S + "/mensaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: msg, token: tk })
+      });
+      const j = await r.json();
+      res.textContent = (j.status === "ok") ? "✅ " + j.msg : "❌ " + j.msg;
+    } catch (e) {
+      res.textContent = "❌ Error de conexión";
     }
-    
-  async function setTokenFromPrompt() {
-    const tk = prompt("Pega aquí el token seguro que generaste (solo en tu celular):");
-    if (tk && tk.length > 10) {
-      localStorage.setItem("RC_TOKEN", tk);
+  }
+
+  async function getStatus() {
+    const res = document.getElementById("res");
+    res.textContent = "Consultando...";
+    try {
+      const r = await fetch(S + "/status");
+      res.textContent = await r.text();
+    } catch {
+      res.textContent = "❌ No se pudo conectar.";
+    }
+  }
+
+  function setToken() {
+    const t = prompt("Introduce tu token único:");
+    if (t && t.length > 10) {
+      localStorage.setItem("RC_TOKEN", t);
       alert("Token guardado en este dispositivo.");
     } else {
       alert("Token inválido.");
     }
   }
-
-</script>
+  </script>
 </body>
 </html>
